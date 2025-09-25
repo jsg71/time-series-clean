@@ -21,3 +21,15 @@ artifacts/
 *.gz
 *.bz2
 *.7z
+.venv/
+.idea/
+**/__pycache__/
+**/.ipynb_checkpoints/
+data/
+models/
+outputs/
+checkpoints/
+artifacts/
+*.pt *.pth *.ckpt *.h5 *.hdf5 *.pkl *.joblib
+*.parquet *.feather
+*.zip *.tar *.gz *.bz2 *.7z
