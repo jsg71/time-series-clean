@@ -1,0 +1,12 @@
+# requirements.txt  (v0)
+numpy
+scipy               # signal helpers
+torchaudio          # gives SincConv & LEAF front-ends
+torch>=2.1
+pandas
+zarr                # chunked on-disk arrays
+torch>=2.1
+pytorch-lightning
+matplotlib
+
+

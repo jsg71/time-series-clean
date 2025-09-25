@@ -1,0 +1,54 @@
+# .github/workflows/docs.yml
+name: Docs (MkDocs → GitHub Pages)
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      DOCS_NOTEBOOKS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+      - name: Install doc deps
+        run: |
+          python -m pip install -U pip
+          python -m pip install \
+            mkdocs mkdocs-material \
+            mkdocstrings mkdocstrings-python griffe \
+            mkdocs-gen-files mkdocs-section-index \
+            mkdocs-jupyter pymdown-extensions \
+            black
+      - name: Build MkDocs
+        run: mkdocs build --site-dir site
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4

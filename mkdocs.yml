@@ -1,0 +1,73 @@
+# mkdocs.yml
+site_name: Your Project Docs
+theme:
+  name: material
+
+plugins:
+  - gen-files:
+      scripts:
+        - docs/gen_pages.py
+  - section-index
+  - mkdocs-jupyter:
+      execute: false
+      include:
+        - "**/*.ipynb"
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: ["src", "."]
+          options:
+            docstring_style: google
+            show_signature_annotations: true
+            separate_signature: true
+            signature_crossrefs: true
+            merge_init_into_class: true
+            show_if_no_docstring: true
+            members_order: alphabetical
+            filters: ["!^_"]
+  - search
+
+markdown_extensions:
+  - admonition
+  - pymdownx.arithmatex:
+        generic: true
+  - toc: { permalink: true }
+  - tables
+  - attr_list
+  - def_list
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight
+  - pymdownx.snippets:
+      base_path: ["..", "."]   # enables including ../README.md
+
+nav:
+  - Home: index.md
+  - Guide:
+      - Project Structure: guide/project-structure.md
+  - Reference:
+      - reference/index.md
+  - Notebooks:
+      - notebooks/index.md
+  - Cards:
+      - Simple MAD Detector: cards/mad-detector.md
+      - ResNet Autoencoder: cards/resnet-autoencoder.md
+      - Waveform Bursts Dataset: cards/waveform-bursts-dataset.md
+      - Hilbert Env: cards/model-card-hilbert-envelope.md
+      - Data Storm: cards/data-card-storm-sim.md
+      - CDAE: cards/model-card-cdae.md
+      - EIF: cards/model-card-extended-isolation-forest.md
+      - GNN: cards/model-card-graph-cdae.md
+      - IF: cards/model-card-isolation-forest.md
+      - NCD: cards/model-card-ncd.md
+      - OCSVM: cards/model-card-ocsvm.md
+      - Playbook: cards/python-engineering-playbook.md
+
+use_directory_urls: true
+extra_css:
+  - _styles/overrides.css
+
+extra_javascript:
+  - javascripts/mathjax3-config.js                # <-- load config FIRST
+  - assets/mathjax/es5/tex-mml-chtml.js
+  #- https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js

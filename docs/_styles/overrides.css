@@ -1,0 +1,5 @@
+/* widen the content column */
+.md-main__inner.md-grid { max-width: 100rem; }
+/* wrap long code lines */
+.md-typeset pre > code { white-space: pre-wrap; word-break: break-word; }
+

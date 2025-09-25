@@ -1,0 +1,37 @@
+# PATH: .gitlab-ci.yml
+image: python:3.11-slim
+
+stages: [build, deploy]
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  DOCS_NOTEBOOKS: "1"   # set "0" to skip notebook rendering
+
+cache:
+  key: "$CI_COMMIT_REF_SLUG"
+  paths: [ .cache/pip ]
+
+before_script:
+  - python -m pip install -U pip
+  - python -m pip install -r requirements-docs.txt
+
+build_docs:
+  stage: build
+  script: mkdocs build
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH
+  artifacts:
+    paths: [ site ]
+    expire_in: 1 day
+
+pages:
+  stage: deploy
+  script:
+    - mkdocs build
+    - mv site public        # GitLab Pages expects ./public
+  artifacts:
+    paths: [ public ]
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+
