@@ -1,12 +1,21 @@
+# virtualenv & IDE
 .venv/
 .idea/
 **/__pycache__/
 **/.ipynb_checkpoints/
+
+# build/output/data
 data/
 models/
 outputs/
 checkpoints/
 artifacts/
+dist/
+build/
+site/
+node_modules/
+
+# large binary/model formats
 *.pt
 *.pth
 *.ckpt
@@ -21,15 +30,13 @@ artifacts/
 *.gz
 *.bz2
 *.7z
-.venv/
-.idea/
-**/__pycache__/
-**/.ipynb_checkpoints/
-data/
-models/
-outputs/
-checkpoints/
-artifacts/
-*.pt *.pth *.ckpt *.h5 *.hdf5 *.pkl *.joblib
-*.parquet *.feather
-*.zip *.tar *.gz *.bz2 *.7z
+*.wav
+*.mp4
+*.mov
+*.pdf
+*.png
+*.jpg
+*.jpeg
+
+# vendored docs assets (re-add later if truly needed)
+docs/assets/mathjax/
