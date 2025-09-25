@@ -15,7 +15,7 @@ build/
 site/
 node_modules/
 
-# large binary/model formats
+# large/binary formats (adjust as needed)
 *.pt
 *.pth
 *.ckpt
@@ -38,5 +38,5 @@ node_modules/
 *.jpg
 *.jpeg
 
-# vendored docs assets (re-add later if truly needed)
+# heavy vendored docs assets (use CDN instead)
 docs/assets/mathjax/
