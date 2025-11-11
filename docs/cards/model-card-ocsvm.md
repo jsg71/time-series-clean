@@ -1,70 +1,172 @@
---
-title: "Model Card — One‑Class SVM (per‑station)"
+---
+title: "Model Card — One-Class SVM (per-station)"
 status: "production-candidate"
-owners:
-  - team: Lightning Sim / Detection
-    email: john.goodacre@example.co.uk
-model-id: "lightning_sim.detectors.ocsvm.ExtendedOCSVM"
 classification: "Official Sensitive"
+model-id: "lightning_sim.detectors.ocsvm.ExtendedOCSVM"
 license: "Official Sensitive"
-tags:
-  - unsupervised
-  - window-level
-  - svm
-  - rbf-kernel
-  - feature-based
-  - reproducible
+tags: [unsupervised, window-level, svm, rbf-kernel, feature-based, reproducible]
 ---
 
-# Model Card — One‑Class SVM (per‑station)
+# Model Card — One-Class SVM (per-station)
 
 > **TL;DR**  
-> A per‑station **One‑Class SVM (RBF kernel)** over the 16‑D **iso16** feature block. Scales features with **RobustScaler**, chooses **γ** via a fast **median‑heuristic**, performs a tiny **unsupervised grid** over \((\nu,\gamma)\) using a **stability split**, and adds an **extreme‑tail rescue** on the SVM scores. Outputs Boolean window masks plug‑compatible with the shared evaluator; optional 3‑tap majority smoothing reduces flicker.
+> Per-station **One-Class SVM (RBF)** over 16-D **iso16** features.  
+> **RobustScaler** → fast γ **median-heuristic** → tiny (ν, γ) grid with stability-split → **extreme-tail rescue**.  
+> Outputs Boolean window masks plug-compatible with the evaluator; 3-tap smoothing reduces flicker.
 
 ---
 
-## 1) Model summary
+## 1. Model Overview
 
-- **Task**: Unsupervised, window‑level lightning‑stroke detection (one model per *station*; network decision handled by the evaluator).  
-- **Signal → Features**: Raw int16 ADC (14‑bit) → windows (**WIN=1024**, **HOP=512**) → **iso16** features (time/envelope/spectrum).  
-- **Method**: :class:`sklearn.svm.OneClassSVM` with **RBF kernel** after :class:`sklearn.preprocessing.RobustScaler`.  
-- **Decision**: A window is *hot* if SVM score `< 0` **or** below an **extreme‑tail** threshold from the training score distribution.  
-- **Output**: `Dict[str, np.ndarray[bool]]` per station.  
-- **Evaluator**: `evaluate_windowed_model` (station‑ and network‑level metrics).
+**Model Name:** One-Class SVM (per-station)  
+**Model Version:** v0.1.0  
+**Parent Model:** None  
+**Card Author:** Lightning Sim / Detection  
+**Contact:** john.goodacre@example.co.uk  
+**Model Provider:** Lightning Sim  
+**Model Input:** `Dict[str, np.ndarray]` of equal-length int16 ADC traces per station (fs≈109 kHz)  
+**Model Output:** `Dict[str, np.ndarray[bool]]` window masks (per-station)  
+**Model Task:** Unsupervised window-level lightning-stroke detection  
+**Model Architecture:** RobustScaler → One-Class SVM (RBF); γ median-heuristic; tiny (ν,γ) grid; extreme-tail rescue  
+**License:** Official Sensitive  
+**Links & Citations:**  
+- Internal module `lightning_sim.detectors.ocsvm.ExtendedOCSVM`  
+- Evaluator `evaluate_windowed_model`  
+- Schölkopf et al., *Support Vector Method for Novelty Detection*, NeurIPS 1999  
+- scikit-learn ≥ 1.1 (OneClassSVM)
 
 ---
 
-## 2) Intended use & scope
+## 2. Model Usage
 
-- **Primary**: A stronger feature‑based unsupervised detector than simple thresholds, with principled kernel scaling via γ heuristic and light per‑station tuning.  
-- **Secondary**: Diversity member in ensembles (e.g., OR with IF/CDAE/NCD).  
-- **Out‑of‑scope**: Stroke typing, localisation, or safety‑critical alerting without downstream checks.
+### Intended Use
+Feature-based unsupervised anomaly detector for lightning strokes; per-station model aggregated by evaluator.
+
+### Out of Scope Uses
+- Stroke typing  
+- Localisation  
+- Safety-critical alerting without downstream checks
+
+### Recommendations for Use
+Use one model per station and aggregate network decisions via evaluator.  
+Majority smoothing reduces flicker. Adjust `BASE_NU` / `NU_GRID` per station noise.
 
 ---
 
-## 3) Inputs & outputs (I/O contract)
+## 3. Datasets and Training
 
-**Input**  
-`raw: Dict[str, np.ndarray]` — equal‑length 1‑D int16 arrays (one per station).
+**Dataset:** Internal `storm_data` (quantised ADC traces + stroke_records)  
+**Dataset Purpose:** Unsupervised fit of per-station OCSVMs; calibrate scaler and score thresholds.  
+**Link to Dataset Card:** _TBD_  
+**Dataset Purpose Notes:** Assumes anomalies are rare; station distributions preserved.  
 
-**Output**  
-`hot: Dict[str, np.ndarray]` — Boolean masks of length `n_win` (aligned to the minimum window count across stations).
+### Data Pre-processing
+- Windowing `WIN=1024`, `HOP=512`  
+- Feature extraction `iso16 → 16-D`  
+- Scaling with `RobustScaler`  
 
-**Reference evaluator call**
+### Model Initialisation
+- γ base via median-heuristic (64 anchors)  
+- ν grid = [0.00075, 0.0015, 0.003]  
+- γ grid = {0.5, 1.0, 2.0}×γ₀  
+- Seed = 42  
+- Train max = 3 000  
+
+### Training Process
+1. Subsample to `TRAIN_MAX`.  
+2. Compute γ₀ (median distance); form small γ grid.  
+3. Split data A/B for unsupervised stability selection.  
+4. Pick (ν,γ) with balanced flag rates.  
+5. Fit final OCSVM on all samples.  
+6. Score all windows; compute extreme-tail threshold `T_ext`.  
+7. Hot mask = (s < 0) or (s < T_ext); optional 3-tap smoothing.
+
+---
+
+## 4. Evaluation
+
+### Evaluation Overview
+Two levels: **station-level** (window) and **network-level** (stroke).
+
+### Evaluation Metric
+Precision | Recall | F1 (aggregated at network level)  
+Per-station P/R/F1 for diagnostics.
+
+### Metric Description
+Network stroke = TP if ≥ `min_stn` stations hot in overlapping window; FP = clusters without truth overlap.  
+Evaluator config: `win=1024`, `hop=512`, `fs=109 375`, `burst_len≈0.04 s`, `min_stn=2`, `tol_win=0`.
+
+### Type of Evaluation
+- Window-level (station)  
+- Stroke-level (network)
+
+### Evaluation Notes
+Majority smoothing reduces boundary flicker; γ scaling affects precision/recall balance.
+
+---
+
+## 5. Enabling Technology and Compute & Memory Usage
+
+**Hardware:** Commodity CPU; seconds per station (~3 k samples).  
+**Software:** Python ≥ 3.9; NumPy; SciPy; scikit-learn ≥ 1.1; joblib.  
+
+**Compute and Memory:**  
+- Memory ≈ O(min(TRAIN_MAX, n_win)²) kernel cache + O(n_win) scores  
+- CPU ≈ seconds per station; prediction linear in n_win
+
+---
+
+## 6. Risks
+
+| Risk | Description | Stage | Control | Status | Treatment |
+|------|--------------|-------|----------|---------|-----------|
+| Kernel scale (γ) mis-set | Too small → misses; too large → FP | Training | Technical | In place | Median-heuristic + tiny grid + stability split |
+| ν mis-set | Under/over estimate of anomaly rate | Training | Technical | In place | Bounded grid; stability split; station-specific tuning |
+| Compute cost | Super-linear kernel fit | Training/Ops | Technical | In place | TRAIN_MAX cap; small grids; anchor heuristic |
+| Distribution drift | Spectrum/RFI shifts | Operations | Monitoring | Recommended | Refresh scaler + re-fit when metrics degrade |
+
+---
+
+## 7. Additional Information
+
+### Security & Privacy
+- Data local only; no external services  
+- No PII in ADC traces  
+- Handle under Official Sensitive procedures  
+
+### Reproducibility & Versioning
+- Config hash over {win, hop, features, nu_grid, gam_factors, extreme_q, train_max, anchors, seed}+code version  
+- Log per-station scaler params, (ν,γ), SV counts, thresholds, score histograms  
+- CI test on frozen storm to confirm identical masks
+
+### Dependencies & Environment
+Python ≥ 3.9; NumPy; SciPy; scikit-learn ≥ 1.1; joblib.  
+
+### Governance
+Owners: Lightning Sim · Detection  
+On-call: john.goodacre@example.co.uk  
+Escalation: #sim-detection (internal)
+
+### Changelog
+- **v0.1.0** — Initial OCSVM model + card (iso16 features, RobustScaler, γ heuristic, stability grid, extreme-tail rescue, evaluator integration).
+
+---
+
+### Reference Implementation (usage)
+
 ```python
-station_m, net_m, _ = evaluate_windowed_model(
-    hot=hot,
-    stroke_records=storm_data.stroke_records,
-    quantized=storm_data.quantised,
-    station_order=list(raw),
-    cfg=EvalConfig(win=1024, hop=512, fs=109_375,
-                   burst_len=int(0.04*109_375),
-                   min_stn=2, tol_win=0),
-    plot=True
-)
-```
+from lightning_sim.detectors.ocsvm import ExtendedOCSVM
 
----
+model = ExtendedOCSVM(
+    win=1024, hop=512,
+    extreme_q=99.95,
+    train_max=3000,
+    nu_grid=[0.00075, 0.0015, 0.003],
+    gam_factors=[0.5, 1.0, 2.0]
+)
+model.fit(storm_data.quantised, fs=109_375, verbose=True)
+hot = model.predict(storm_data.quantised, fs=109_375, smooth=True)
+```
 
 ## 4) Mathematical formulation
 
