@@ -23,5 +23,7 @@ Welcome! This site is built automatically from your code and notebooks.
 - [NCD Card](cards/model-card-ncd.md)
 - [OCSVM Card](cards/model-card-ocsvm.md)
 - [Python Engineering Card](cards/python-engineering-playbook.md)
+- [Auditor spreadsheet](downloads/auditor_model_card.xlsx)
+
 
 
